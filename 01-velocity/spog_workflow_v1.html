@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReqFlow — Workflow Prototype</title>
+<style>
+  :root{
+    --magenta:#E20074;
+    --ink:#1A1A1E;
+    --paper:#FAFAFA;
+    --panel:#FFFFFF;
+    --line:#E4E4E7;
+    --slate:#5C6470;
+    --slate-light:#8A909C;
+    --green:#0F9D58;
+    --green-bg:#E9F7EF;
+    --amber:#B7791F;
+    --amber-bg:#FBF2E3;
+    --red:#C0392B;
+    --red-bg:#FBEAE8;
+    --blue:#2563EB;
+    --blue-bg:#EAF0FE;
+    --radius:10px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--paper); color:var(--ink); -webkit-font-smoothing:antialiased;}
+  .app{display:flex; min-height:100vh;}
+
+  /* ===== Sidebar ===== */
+  .sidebar{width:220px; background:var(--ink); color:#fff; flex-shrink:0; display:flex; flex-direction:column; padding:20px 0;}
+  .brand{display:flex; align-items:center; gap:10px; padding:0 20px 20px 20px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:16px;}
+  .brand-mark{width:28px; height:28px; border-radius:6px; background:var(--magenta); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px;}
+  .brand-name{font-weight:700; font-size:15px; letter-spacing:-0.2px;}
+  .brand-sub{font-size:10px; color:var(--slate-light); letter-spacing:0.5px; text-transform:uppercase;}
+
+  .role-switch{margin:0 12px 20px 12px; background:rgba(255,255,255,0.06); border-radius:8px; padding:3px; display:flex; gap:2px;}
+  .role-btn{flex:1; text-align:center; padding:8px 6px; font-size:11.5px; font-weight:700; border-radius:6px; cursor:pointer; color:#B9BAC0;}
+  .role-btn.active{background:var(--magenta); color:#fff;}
+
+  .nav-section{padding:0 12px; margin-bottom:24px;}
+  .nav-label{font-size:10px; text-transform:uppercase; letter-spacing:0.8px; color:var(--slate-light); padding:0 12px 8px 12px; font-weight:600;}
+  .nav-item{display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:7px; font-size:13.5px; color:#D4D5D8; cursor:pointer;}
+  .nav-item:hover{background:rgba(255,255,255,0.06);}
+  .nav-item.active{background:rgba(255,255,255,0.12); color:#fff; font-weight:600;}
+  .nav-dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:0.7;}
+
+  /* ===== Main ===== */
+  .main{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .topbar{height:64px; background:var(--panel); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 28px;}
+  .topbar h1{font-size:17px; font-weight:700; letter-spacing:-0.2px;}
+  .topbar-sub{font-size:12px; color:var(--slate-light); margin-top:2px;}
+  .btn{font-size:12px; font-weight:700; padding:8px 15px; border-radius:7px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer;}
+  .btn-primary{background:var(--magenta); border-color:var(--magenta); color:#fff;}
+
+  .workspace{flex:1; padding:24px 28px; overflow-y:auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ===== Status pipeline (HM view) ===== */
+  .status-pipeline{display:flex; gap:12px; margin-bottom:22px;}
+  .status-col{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+  .status-col-head{padding:12px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;}
+  .status-col-title{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;}
+  .status-count{font-size:11px; font-weight:700; color:var(--slate-light); background:#F0F0F2; padding:2px 7px; border-radius:10px;}
+  .status-col-body{padding:10px; display:flex; flex-direction:column; gap:8px; min-height:80px;}
+  .req-card{background:#FCFCFD; border:1px solid var(--line); border-radius:8px; padding:10px 12px;}
+  .req-card-title{font-size:12.5px; font-weight:700;}
+  .req-card-meta{font-size:11px; color:var(--slate-light); margin-top:3px;}
+  .req-card-gate{font-size:10px; margin-top:8px; padding:5px 8px; border-radius:5px; font-weight:600; display:inline-block;}
+  .gate-blue{background:var(--blue-bg); color:var(--blue);}
+  .gate-amber{background:var(--amber-bg); color:var(--amber);}
+  .gate-green{background:var(--green-bg); color:var(--green);}
+  .gate-red{background:var(--red-bg); color:var(--red);}
+
+  /* ===== Approval action row ===== */
+  .approval-actions{display:flex; gap:8px; margin-top:8px;}
+  .approval-actions button{flex:1; font-size:10.5px; padding:6px; border-radius:6px; border:1px solid var(--line); background:#fff; font-weight:700; cursor:pointer;}
+  .approve-btn{color:var(--green); border-color:#BEE6CE;}
+  .reject-btn{color:var(--red); border-color:#F1C6C0;}
+
+  /* ===== New req form ===== */
+  .form-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px; max-width:480px;}
+  .form-row{margin-bottom:14px;}
+  .form-row label{display:block; font-size:11.5px; font-weight:700; color:var(--slate); margin-bottom:5px;}
+  .form-row input, .form-row textarea, .form-row select{
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:7px; font-size:13px; font-family:inherit;
+  }
+  .form-note{font-size:11px; color:var(--slate-light); margin-top:4px;}
+
+  /* ===== Gate banner ===== */
+  .gate-banner{
+    background:var(--blue-bg); border:1px solid #C9D9FB; border-radius:8px; padding:12px 16px;
+    font-size:12px; color:var(--blue); margin-bottom:20px; display:flex; align-items:flex-start; gap:10px; line-height:1.5;
+  }
+  .gate-banner b{display:block; color:var(--ink); margin-bottom:2px; font-size:12.5px;}
+
+  /* ===== Recruiter portal list ===== */
+  .recruiter-list{display:flex; flex-direction:column; gap:10px;}
+  .recruiter-req-row{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 18px; display:flex; align-items:center; justify-content:space-between; cursor:pointer;
+  }
+  .rr-left{display:flex; flex-direction:column; gap:3px;}
+  .rr-title{font-size:13.5px; font-weight:700;}
+  .rr-meta{font-size:11.5px; color:var(--slate-light);}
+  .rr-badge{font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:6px; background:var(--green-bg); color:var(--green);}
+
+  /* ===== Stage rail (recruiter detail, gated - starts at Posting) ===== */
+  .stage-rail{display:flex; align-items:center; padding:20px 0 4px 0; gap:0; overflow-x:auto;}
+  .stage{display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; flex-shrink:0; width:120px;}
+  .stage-connector{position:absolute; top:14px; left:calc(-60px + 14px); width:120px; height:2px; background:var(--line); z-index:0;}
+  .stage:first-child .stage-connector{display:none;}
+  .stage-connector.done{background:var(--green);}
+  .stage-node{width:28px; height:28px; border-radius:50%; border:2px solid var(--line); background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--slate-light); z-index:1;}
+  .stage-node.done{background:var(--green); border-color:var(--green); color:#fff;}
+  .stage-node.current{background:var(--magenta); border-color:var(--magenta); color:#fff; box-shadow:0 0 0 4px rgba(226,0,116,0.15);}
+  .stage-label{font-size:11px; font-weight:600; color:var(--slate); text-align:center;}
+  .stage-sub{font-size:9.5px; color:var(--slate-light);}
+
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:16px; padding:16px 18px;}
+  .card-title{font-size:13px; font-weight:700; margin-bottom:10px;}
+
+  .footnote{font-size:11px; color:var(--slate-light); text-align:center; padding:18px 0 4px 0;}
+  .back-link{font-size:12px; color:var(--slate); cursor:pointer; margin-bottom:14px; display:inline-block; font-weight:600;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">R</div>
+      <div>
+        <div class="brand-name">ReqFlow</div>
+        <div class="brand-sub">Talent Acquisition</div>
+      </div>
+    </div>
+
+    <div class="role-switch">
+      <div class="role-btn active" id="btn-hm" onclick="setRole('hm')">Hiring Manager</div>
+      <div class="role-btn" id="btn-rec" onclick="setRole('rec')">Recruiter</div>
+    </div>
+
+    <div class="nav-section" id="nav-hm">
+      <div class="nav-label">Workspace</div>
+      <div class="nav-item active"><span class="nav-dot"></span> My Requisitions</div>
+      <div class="nav-item"><span class="nav-dot"></span> Approval Queue</div>
+    </div>
+
+    <div class="nav-section" id="nav-rec" style="display:none;">
+      <div class="nav-label">Workspace</div>
+      <div class="nav-item active"><span class="nav-dot"></span> My Requisitions</div>
+      <div class="nav-item"><span class="nav-dot"></span> Candidates</div>
+      <div class="nav-item"><span class="nav-dot"></span> Reports</div>
+    </div>
+  </aside>
+
+  <div class="main">
+
+    <!-- ============ HIRING MANAGER VIEW ============ -->
+    <div class="view active" id="view-hm">
+      <div class="topbar">
+        <div>
+          <h1>My Requisitions</h1>
+          <div class="topbar-sub">Hiring Manager — S. Alvarez</div>
+        </div>
+        <button class="btn btn-primary" onclick="toggleForm()">+ New Requisition</button>
+      </div>
+      <div class="workspace">
+
+        <div class="gate-banner">
+          <div>
+            <b>Gating rule active</b>
+            A requisition only appears in the Recruiter portal after Finance/HR approval. Draft and Pending Approval reqs are visible here only.
+          </div>
+        </div>
+
+        <div class="form-card" id="new-req-form" style="display:none; margin-bottom:22px;">
+          <div class="form-row">
+            <label>Job Title</label>
+            <input type="text" placeholder="e.g. Sr. Data Analyst">
+          </div>
+          <div class="form-row">
+            <label>Department / Cost Center</label>
+            <input type="text" placeholder="e.g. IT-4021">
+          </div>
+          <div class="form-row">
+            <label>Headcount</label>
+            <input type="number" placeholder="1">
+          </div>
+          <div class="form-row">
+            <label>Justification</label>
+            <textarea rows="3" placeholder="Backfill / new growth / etc."></textarea>
+            <div class="form-note">Submitting sends this to Finance/HR Approval Queue — it will not appear to Recruiting until approved.</div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;">Submit for Approval</button>
+        </div>
+
+        <div class="status-pipeline">
+          <div class="status-col">
+            <div class="status-col-head"><span class="status-col-title">Draft</span><span class="status-count">1</span></div>
+            <div class="status-col-body">
+              <div class="req-card">
+                <div class="req-card-title">Data Analyst II</div>
+                <div class="req-card-meta">IT-4021 · not yet submitted</div>
+                <span class="req-card-gate gate-blue">Not visible to Recruiting</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-col">
+            <div class="status-col-head"><span class="status-col-title">Pending Approval</span><span class="status-count">1</span></div>
+            <div class="status-col-body">
+              <div class="req-card">
+                <div class="req-card-title">Field Ops Supervisor</div>
+                <div class="req-card-meta">OPS-1180 · submitted 2d ago · awaiting Finance/HR</div>
+                <span class="req-card-gate gate-amber">Not visible to Recruiting</span>
+                <div class="approval-actions">
+                  <button class="approve-btn" onclick="approveReq(this)">Approve</button>
+                  <button class="reject-btn">Reject</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-col">
+            <div class="status-col-head"><span class="status-col-title">Approved</span><span class="status-count" id="approved-count">1</span></div>
+            <div class="status-col-body" id="approved-list">
+              <div class="req-card">
+                <div class="req-card-title">Sr. Network Engineer</div>
+                <div class="req-card-meta">TM-88213 · Bellevue · approved 18d ago</div>
+                <span class="req-card-gate gate-green">Live in Recruiter portal</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-col">
+            <div class="status-col-head"><span class="status-col-title">Rejected</span><span class="status-count">1</span></div>
+            <div class="status-col-body">
+              <div class="req-card">
+                <div class="req-card-title">Contractor — Temp</div>
+                <div class="req-card-meta">FIN-2290 · rejected: budget</div>
+                <span class="req-card-gate gate-red">Not visible to Recruiting</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============ RECRUITER VIEW — LIST ============ -->
+    <div class="view" id="view-rec-list">
+      <div class="topbar">
+        <div>
+          <h1>My Requisitions</h1>
+          <div class="topbar-sub">Recruiter — J. Doe</div>
+        </div>
+      </div>
+      <div class="workspace">
+        <div class="gate-banner">
+          <div>
+            <b>Only approved requisitions appear here</b>
+            Budget and approval steps happen with the Hiring Manager and Finance/HR before a req reaches Recruiting. Draft and Pending Approval reqs are not shown or actionable on this screen.
+          </div>
+        </div>
+
+        <div class="recruiter-list" id="recruiter-list">
+          <div class="recruiter-req-row" onclick="openReq()">
+            <div class="rr-left">
+              <div class="rr-title">Sr. Network Engineer — Bellevue</div>
+              <div class="rr-meta">TM-88213 · Approved 18d ago · 14 candidates in pipeline</div>
+            </div>
+            <span class="rr-badge">Sourcing &amp; Screen</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RECRUITER VIEW — REQ DETAIL (stage rail starts post-approval) ============ -->
+    <div class="view" id="view-rec-detail">
+      <div class="topbar">
+        <div>
+          <h1>Sr. Network Engineer — Bellevue</h1>
+          <div class="topbar-sub">TM-88213 · Approved by S. Alvarez, 18 days ago</div>
+        </div>
+        <button class="btn">+ Add Candidate</button>
+      </div>
+      <div class="workspace">
+        <span class="back-link" onclick="backToList()">&larr; Back to My Requisitions</span>
+
+        <div class="gate-banner">
+          <div>
+            <b>Budget &amp; Approval removed from this view</b>
+            Those steps are owned by the Hiring Manager and completed before this req reached you. Recruiter workflow starts at Posting.
+          </div>
+        </div>
+
+        <div class="stage-rail">
+          <div class="stage">
+            <div class="stage-node done">✓</div>
+            <div class="stage-label">Posting</div>
+            <div class="stage-sub">Live 12d</div>
+          </div>
+          <div class="stage">
+            <div class="stage-connector done"></div>
+            <div class="stage-node current">2</div>
+            <div class="stage-label">Sourcing &amp; Screen</div>
+            <div class="stage-sub">14 candidates</div>
+          </div>
+          <div class="stage">
+            <div class="stage-connector"></div>
+            <div class="stage-node">3</div>
+            <div class="stage-label">Interview</div>
+            <div class="stage-sub">Not started</div>
+          </div>
+          <div class="stage">
+            <div class="stage-connector"></div>
+            <div class="stage-node">4</div>
+            <div class="stage-label">BG Check</div>
+            <div class="stage-sub">—</div>
+          </div>
+          <div class="stage">
+            <div class="stage-connector"></div>
+            <div class="stage-node">5</div>
+            <div class="stage-label">Offer</div>
+            <div class="stage-sub">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Candidate Pipeline</div>
+          <div style="font-size:12px; color:var(--slate-light);">Aggregated from LinkedIn Recruiter, HiredScore, and Accurate — same as prior prototype. Unchanged in this workflow update.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function setRole(role){
+    document.getElementById('btn-hm').classList.toggle('active', role==='hm');
+    document.getElementById('btn-rec').classList.toggle('active', role==='rec');
+    document.getElementById('nav-hm').style.display = role==='hm' ? 'block':'none';
+    document.getElementById('nav-rec').style.display = role==='rec' ? 'block':'none';
+    document.getElementById('view-hm').classList.toggle('active', role==='hm');
+    if(role==='rec'){ backToList(); } else {
+      document.getElementById('view-rec-list').classList.remove('active');
+      document.getElementById('view-rec-detail').classList.remove('active');
+    }
+  }
+  function toggleForm(){
+    var f = document.getElementById('new-req-form');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  }
+  function openReq(){
+    document.getElementById('view-rec-list').classList.remove('active');
+    document.getElementById('view-rec-detail').classList.add('active');
+  }
+  function backToList(){
+    document.getElementById('view-rec-detail').classList.remove('active');
+    document.getElementById('view-rec-list').classList.add('active');
+  }
+  function approveReq(btn){
+    var card = btn.closest('.req-card');
+    card.style.opacity = '0.4';
+    btn.closest('.approval-actions').innerHTML = '<span style="font-size:10.5px;color:var(--green);font-weight:700;">Approved — now live in Recruiter portal</span>';
+  }
+</script>
+</body>
+</html>
