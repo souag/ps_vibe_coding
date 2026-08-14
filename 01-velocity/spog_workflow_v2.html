@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReqFlow — Workflow Prototype v4</title>
+<style>
+  :root{
+    --magenta:#E20074; --ink:#1A1A1E; --paper:#FAFAFA; --panel:#FFFFFF; --line:#E4E4E7;
+    --slate:#5C6470; --slate-light:#8A909C; --green:#0F9D58; --green-bg:#E9F7EF;
+    --amber:#B7791F; --amber-bg:#FBF2E3; --red:#C0392B; --red-bg:#FBEAE8;
+    --blue:#2563EB; --blue-bg:#EAF0FE; --purple:#6B3FA0; --purple-bg:#F1EAFA; --radius:10px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--paper); color:var(--ink); -webkit-font-smoothing:antialiased;}
+  .app{display:flex; min-height:100vh;}
+  .sidebar{width:220px; background:var(--ink); color:#fff; flex-shrink:0; display:flex; flex-direction:column; padding:20px 0;}
+  .brand{display:flex; align-items:center; gap:10px; padding:0 20px 20px 20px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:16px;}
+  .brand-mark{width:28px; height:28px; border-radius:6px; background:var(--magenta); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px;}
+  .brand-name{font-weight:700; font-size:15px; letter-spacing:-0.2px;}
+  .brand-sub{font-size:10px; color:var(--slate-light); letter-spacing:0.5px; text-transform:uppercase;}
+  .role-switch{margin:0 12px 20px 12px; background:rgba(255,255,255,0.06); border-radius:8px; padding:3px; display:flex; gap:2px;}
+  .role-btn{flex:1; text-align:center; padding:8px 6px; font-size:11.5px; font-weight:700; border-radius:6px; cursor:pointer; color:#B9BAC0;}
+  .role-btn.active{background:var(--magenta); color:#fff;}
+  .nav-section{padding:0 12px; margin-bottom:24px;}
+  .nav-label{font-size:10px; text-transform:uppercase; letter-spacing:0.8px; color:var(--slate-light); padding:0 12px 8px 12px; font-weight:600;}
+  .nav-item{display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:7px; font-size:13.5px; color:#D4D5D8; cursor:pointer;}
+  .nav-item:hover{background:rgba(255,255,255,0.06);}
+  .nav-item.active{background:rgba(255,255,255,0.12); color:#fff; font-weight:600;}
+  .nav-count{font-size:10px; background:rgba(255,255,255,0.12); padding:1px 7px; border-radius:9px; color:#D4D5D8;}
+  .main{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .topbar{min-height:64px; background:var(--panel); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:14px 28px;}
+  .topbar h1{font-size:17px; font-weight:700; letter-spacing:-0.2px;}
+  .topbar-sub{font-size:12px; color:var(--slate-light); margin-top:2px;}
+  .btn{font-size:12px; font-weight:700; padding:8px 15px; border-radius:7px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer;}
+  .btn-primary{background:var(--magenta); border-color:var(--magenta); color:#fff;}
+  .btn:disabled{opacity:0.5; cursor:default;}
+  .workspace{flex:1; padding:24px 28px; overflow-y:auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+  .status-pipeline{display:flex; gap:12px; margin-bottom:22px; align-items:flex-start;}
+  .status-col{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; min-width:0;}
+  .status-col-head{padding:12px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;}
+  .status-col-title{font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;}
+  .status-count{font-size:11px; font-weight:700; color:var(--slate-light); background:#F0F0F2; padding:2px 7px; border-radius:10px;}
+  .status-col-body{padding:10px; display:flex; flex-direction:column; gap:8px; min-height:60px; max-height:520px; overflow-y:auto;}
+  .req-card{background:#FCFCFD; border:1px solid var(--line); border-radius:8px; padding:10px 12px;}
+  .req-card-title{font-size:12.5px; font-weight:700;}
+  .req-card-meta{font-size:11px; color:var(--slate-light); margin-top:3px;}
+  .req-card-gate{font-size:10px; margin-top:8px; padding:5px 8px; border-radius:5px; font-weight:600; display:inline-block;}
+  .gate-blue{background:var(--blue-bg); color:var(--blue);}
+  .gate-amber{background:var(--amber-bg); color:var(--amber);}
+  .gate-green{background:var(--green-bg); color:var(--green);}
+  .gate-red{background:var(--red-bg); color:var(--red);}
+  .approval-actions{display:flex; gap:8px; margin-top:8px;}
+  .approval-actions button{flex:1; font-size:10.5px; padding:6px; border-radius:6px; border:1px solid var(--line); background:#fff; font-weight:700; cursor:pointer;}
+  .approve-btn{color:var(--green); border-color:#BEE6CE;}
+  .reject-btn{color:var(--red); border-color:#F1C6C0;}
+  .form-row{margin-bottom:14px;}
+  .form-row label{display:block; font-size:11.5px; font-weight:700; color:var(--slate); margin-bottom:5px;}
+  .form-row input, .form-row textarea, .form-row select{width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:7px; font-size:13px; font-family:inherit;}
+  .form-row input.missing{border-color:var(--amber); background:var(--amber-bg);}
+  .form-note{font-size:11px; color:var(--slate-light); margin-top:4px;}
+  .gate-banner{background:var(--blue-bg); border:1px solid #C9D9FB; border-radius:8px; padding:12px 16px; font-size:12px; color:var(--blue); margin-bottom:20px; display:flex; align-items:flex-start; gap:10px; line-height:1.5;}
+  .gate-banner b{display:block; color:var(--ink); margin-bottom:2px; font-size:12.5px;}
+  .recruiter-list{display:flex; flex-direction:column; gap:10px;}
+  .recruiter-req-row{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:14px 18px; display:flex; align-items:center; justify-content:space-between; cursor:pointer;}
+  .recruiter-req-row:hover{border-color:var(--magenta);}
+  .rr-left{display:flex; flex-direction:column; gap:3px;}
+  .rr-title{font-size:13.5px; font-weight:700;}
+  .rr-meta{font-size:11.5px; color:var(--slate-light);}
+  .rr-badge{font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:6px; background:var(--green-bg); color:var(--green); white-space:nowrap;}
+  .rr-badge.offer{background:var(--purple-bg); color:var(--purple);}
+  .stage-rail{display:flex; align-items:center; padding:20px 0 4px 0; gap:0; overflow-x:auto;}
+  .stage{display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; flex-shrink:0; width:120px;}
+  .stage-connector{position:absolute; top:14px; left:calc(-60px + 14px); width:120px; height:2px; background:var(--line); z-index:0;}
+  .stage:first-child .stage-connector{display:none;}
+  .stage-connector.done{background:var(--green);}
+  .stage-node{width:28px; height:28px; border-radius:50%; border:2px solid var(--line); background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--slate-light); z-index:1;}
+  .stage-node.done{background:var(--green); border-color:var(--green); color:#fff;}
+  .stage-node.current{background:var(--magenta); border-color:var(--magenta); color:#fff; box-shadow:0 0 0 4px rgba(226,0,116,0.15);}
+  .stage-label{font-size:11px; font-weight:600; color:var(--slate); text-align:center;}
+  .stage-sub{font-size:9.5px; color:var(--slate-light);}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:16px; overflow:hidden;}
+  .card-head{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line);}
+  .card-title{font-size:13px; font-weight:700;}
+  .card-body{padding:14px 18px;}
+  .candidate{display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--line);}
+  .candidate:last-child{border-bottom:none;}
+  .cand-avatar{width:34px; height:34px; border-radius:50%; background:#EDEDF0; display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700; color:var(--slate); flex-shrink:0;}
+  .cand-info{flex:1; min-width:0;}
+  .cand-name{font-size:13px; font-weight:600;}
+  .cand-meta{font-size:11px; color:var(--slate-light); margin-top:2px;}
+  .cand-badges{display:flex; gap:6px; align-items:center; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;}
+  .score-badge{font-size:11px; font-weight:700; padding:4px 9px; border-radius:6px; background:var(--green-bg); color:var(--green); white-space:nowrap;}
+  .score-badge.mid{background:var(--amber-bg); color:var(--amber);}
+  .score-badge.low{background:var(--red-bg); color:var(--red);}
+  .bg-badge{font-size:10.5px; font-weight:600; padding:4px 9px; border-radius:6px; background:var(--green-bg); color:var(--green); white-space:nowrap;}
+  .bg-badge.pending{background:var(--amber-bg); color:var(--amber);}
+  .bg-badge.none{background:#F0F0F2; color:var(--slate-light);}
+  .stage-badge{font-size:10.5px; font-weight:600; padding:4px 9px; border-radius:6px; background:#F0F0F2; color:var(--slate); white-space:nowrap;}
+  .offer-badge{font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px; background:var(--purple-bg); color:var(--purple); white-space:nowrap;}
+  .empty-state{text-align:center; padding:30px 10px; color:var(--slate-light); font-size:12.5px;}
+  .footnote{font-size:11px; color:var(--slate-light); text-align:center; padding:18px 0 4px 0;}
+  .back-link{font-size:12px; color:var(--slate); cursor:pointer; margin-bottom:14px; display:inline-block; font-weight:600;}
+
+  /* Candidates tab: controls + grouped sections */
+  .cand-controls{display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  .cand-controls input[type=text]{flex:1; min-width:200px; padding:9px 12px; border:1px solid var(--line); border-radius:7px; font-size:13px;}
+  .cand-controls select{padding:9px 12px; border:1px solid var(--line); border-radius:7px; font-size:12.5px; background:#fff;}
+  .req-group{margin-bottom:20px;}
+  .req-group-head{display:flex; align-items:baseline; gap:8px; margin-bottom:8px;}
+  .req-group-head h3{font-size:14px; font-weight:700;}
+  .req-group-head span{font-size:11.5px; color:var(--slate-light);}
+  .cand-row{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 16px; margin-bottom:8px; display:flex; align-items:center; gap:12px;}
+  .cand-row .cand-avatar{width:34px; height:34px;}
+  .cand-row-name{font-size:13px; font-weight:700;}
+  .cand-row-sub{font-size:11px; color:var(--slate-light); margin-top:2px;}
+
+  /* Reports */
+  .report-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px;}
+  .metric-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px;}
+  .metric-value{font-size:26px; font-weight:800; letter-spacing:-0.5px;}
+  .metric-label{font-size:11.5px; color:var(--slate-light); margin-top:4px; font-weight:600;}
+  .funnel-row{display:flex; align-items:center; gap:12px; margin-bottom:10px;}
+  .funnel-label{width:130px; font-size:12px; font-weight:600; color:var(--slate); flex-shrink:0;}
+  .funnel-bar-track{flex:1; background:#F0F0F2; border-radius:6px; height:22px; overflow:hidden;}
+  .funnel-bar-fill{height:100%; background:var(--magenta); border-radius:6px 0 0 6px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px;}
+  .funnel-bar-fill span{font-size:10.5px; color:#fff; font-weight:700;}
+  .insight-list{display:flex; flex-direction:column; gap:8px;}
+  .insight-item{display:flex; gap:10px; align-items:flex-start; padding:10px 12px; background:#FCFCFD; border:1px solid var(--line); border-radius:8px; font-size:12.5px; line-height:1.5;}
+  .insight-icon{width:20px; height:20px; border-radius:50%; background:var(--magenta); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;}
+  .health-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .health-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; color:var(--slate-light); padding:8px 10px; border-bottom:1px solid var(--line);}
+  .health-table td{padding:10px; border-bottom:1px solid var(--line); vertical-align:top;}
+  .health-badge{font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px; white-space:nowrap; display:inline-block;}
+  .health-healthy{background:var(--green-bg); color:var(--green);}
+  .health-atrisk{background:var(--red-bg); color:var(--red);}
+  .health-attention{background:var(--amber-bg); color:var(--amber);}
+  .health-reason{color:var(--slate-light); font-size:11.5px;}
+
+  /* Agentic New Req panel */
+  .agentic-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; max-width:560px; margin-bottom:22px;}
+  .agentic-label{font-size:11.5px; font-weight:700; color:var(--slate); margin-bottom:6px;}
+  .ai-input-row{display:flex; gap:8px;}
+  .ai-input-row textarea{flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:7px; font-size:13px; font-family:inherit; resize:vertical;}
+  .chat-log{margin-top:14px; display:flex; flex-direction:column; gap:10px;}
+  .chat-bubble{padding:10px 13px; border-radius:10px; font-size:12.5px; line-height:1.5; max-width:90%;}
+  .chat-user{background:#F0F0F2; align-self:flex-end; color:var(--ink);}
+  .chat-assistant{background:var(--blue-bg); align-self:flex-start; color:var(--ink);}
+  .ai-status{font-size:11.5px; color:var(--slate-light); margin-top:8px; display:none; font-style:italic;}
+  .review-form{margin-top:16px; padding-top:16px; border-top:1px dashed var(--line); display:none;}
+  .review-actions{display:flex; gap:8px; margin-top:6px;}
+  .review-actions button{flex:1;}
+
+  .modal-overlay{display:none; position:fixed; inset:0; background:rgba(26,26,30,0.45); align-items:center; justify-content:center; z-index:50;}
+  .modal-overlay.active{display:flex;}
+  .modal{background:#fff; border-radius:12px; width:440px; max-width:90vw; max-height:85vh; overflow-y:auto; padding:22px;}
+  .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .modal-head h2{font-size:15px; font-weight:700;}
+  .modal-close{cursor:pointer; color:var(--slate-light); font-size:18px; line-height:1;}
+  .source-tabs{display:flex; gap:6px; margin-bottom:16px;}
+  .source-tab{flex:1; text-align:center; padding:8px 6px; border:1px solid var(--line); border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; color:var(--slate);}
+  .source-tab.active{border-color:var(--magenta); color:var(--magenta); background:#FCE9F2;}
+  .modal-footer{display:flex; gap:8px; margin-top:16px;}
+  .modal-footer button{flex:1;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">R</div>
+      <div><div class="brand-name">ReqFlow</div><div class="brand-sub">Talent Acquisition</div></div>
+    </div>
+    <div class="role-switch">
+      <div class="role-btn active" id="btn-hm" onclick="setRole('hm')">Hiring Manager</div>
+      <div class="role-btn" id="btn-rec" onclick="setRole('rec')">Recruiter</div>
+    </div>
+    <div class="nav-section" id="nav-hm">
+      <div class="nav-label">Workspace</div>
+      <div class="nav-item active"><span>My Requisitions</span><span class="nav-count" id="hm-total-count">6</span></div>
+    </div>
+    <div class="nav-section" id="nav-rec" style="display:none;">
+      <div class="nav-label">Workspace</div>
+      <div class="nav-item active" id="nav-rec-reqs" onclick="showRecView('list')"><span>My Requisitions</span><span class="nav-count" id="rec-total-count">4</span></div>
+      <div class="nav-item" id="nav-rec-cands" onclick="showRecView('candidates')"><span>Candidates</span><span class="nav-count" id="rec-cand-count">9</span></div>
+      <div class="nav-item" id="nav-rec-reports" onclick="showRecView('reports')"><span>Reports</span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+
+    <!-- HM VIEW -->
+    <div class="view active" id="view-hm">
+      <div class="topbar">
+        <div><h1>My Requisitions</h1><div class="topbar-sub">Hiring Manager — S. Alvarez</div></div>
+        <button class="btn btn-primary" onclick="toggleAgentic()">+ New Requisition</button>
+      </div>
+      <div class="workspace">
+        <div class="gate-banner"><div><b>Gating rule active</b>A requisition only appears in the Recruiter portal after Finance/HR approval.</div></div>
+
+        <div class="agentic-card" id="agentic-panel" style="display:none;">
+          <div class="agentic-label">Describe the role you need, in your own words</div>
+          <div class="ai-input-row">
+            <textarea id="hm-ai-input" rows="2" placeholder="e.g. Need to backfill a network engineer in Bellevue, budget code IT-4021, previous person left the team last month."></textarea>
+            <button class="btn btn-primary" id="ai-generate-btn" onclick="generateWithAI()">Generate</button>
+          </div>
+          <div class="ai-status" id="ai-status">Drafting requisition from your description…</div>
+          <div class="chat-log" id="ai-chat-log"></div>
+
+          <div class="review-form" id="ai-review-form">
+            <div class="form-note" style="margin-bottom:10px;">Review and edit before submitting. Fields the AI couldn't infer are highlighted — please fill those in.</div>
+            <div class="form-row"><label>Job Title</label><input type="text" id="f-title"></div>
+            <div class="form-row"><label>Department / Cost Center</label><input type="text" id="f-dept"></div>
+            <div class="form-row"><label>Location</label><input type="text" id="f-location"></div>
+            <div class="form-row"><label>Headcount</label><input type="number" id="f-headcount" value="1"></div>
+            <div class="form-row"><label>Justification</label><textarea rows="2" id="f-justification"></textarea></div>
+            <div class="review-actions">
+              <button class="btn" onclick="saveReqDraft()">Save as Draft</button>
+              <button class="btn btn-primary" onclick="submitReqForApproval()">Submit for Approval</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-pipeline" id="hm-pipeline"></div>
+      </div>
+    </div>
+
+    <!-- RECRUITER LIST -->
+    <div class="view" id="view-rec-list">
+      <div class="topbar">
+        <div><h1>My Requisitions</h1><div class="topbar-sub">Recruiter — J. Doe</div></div>
+      </div>
+      <div class="workspace">
+        <div class="gate-banner"><div><b>Only approved requisitions appear here</b>Budget and approval steps happen with the Hiring Manager and Finance/HR before a req reaches Recruiting.</div></div>
+        <div class="recruiter-list" id="recruiter-list"></div>
+      </div>
+    </div>
+
+    <!-- RECRUITER DETAIL -->
+    <div class="view" id="view-rec-detail">
+      <div class="topbar">
+        <div><h1 id="detail-title">—</h1><div class="topbar-sub" id="detail-sub">—</div></div>
+        <button class="btn btn-primary" onclick="openAddCandidate()">+ Add Candidate</button>
+      </div>
+      <div class="workspace">
+        <span class="back-link" onclick="showRecView('list')">&larr; Back to My Requisitions</span>
+        <div class="gate-banner"><div><b>Budget &amp; Approval removed from this view</b>Those steps are owned by the Hiring Manager and completed before this req reached you.</div></div>
+        <div class="stage-rail" id="detail-stage-rail"></div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Candidate Pipeline</span>
+            <span style="font-size:10.5px; color:var(--slate-light);">Aggregated: LinkedIn · HiredScore · Accurate</span>
+          </div>
+          <div class="card-body" id="detail-candidates"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CANDIDATES TAB -->
+    <div class="view" id="view-rec-candidates">
+      <div class="topbar">
+        <div><h1>Candidates</h1><div class="topbar-sub">Grouped by requisition — a candidate may appear in more than one group</div></div>
+      </div>
+      <div class="workspace" id="candidates-workspace"></div>
+    </div>
+
+    <!-- REPORTS TAB -->
+    <div class="view" id="view-rec-reports">
+      <div class="topbar">
+        <div><h1>Reports</h1><div class="topbar-sub">Recruiter performance &amp; pipeline health</div></div>
+      </div>
+      <div class="workspace" id="reports-workspace"></div>
+    </div>
+
+    <div class="footnote">Directional prototype — sample data, no live integrations.</div>
+  </div>
+</div>
+
+<!-- Add Candidate Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-head"><h2>Add Candidate</h2><span class="modal-close" onclick="closeAddCandidate()">&times;</span></div>
+    <div class="source-tabs">
+      <div class="source-tab active" data-src="linkedin" onclick="setSourceTab(this)">LinkedIn</div>
+      <div class="source-tab" data-src="manual" onclick="setSourceTab(this)">Manual Entry</div>
+      <div class="source-tab" data-src="referral" onclick="setSourceTab(this)">Referral</div>
+    </div>
+    <div class="form-row"><label>Full Name</label><input type="text" id="cand-name" placeholder="e.g. Jordan Lee"></div>
+    <div class="form-row"><label>Current Title / Company</label><input type="text" id="cand-meta" placeholder="e.g. Network Engineer, Comcast"></div>
+    <div class="form-row"><label>Resume / Profile Link (optional)</label><input type="text" placeholder="linkedin.com/in/..."></div>
+    <div class="form-note" style="margin-bottom:12px;">If this person already exists as a candidate, this adds a new application rather than duplicating them.</div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAddCandidate()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddCandidate()">Add to Pipeline</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // stage indices: 0 Posting, 1 Sourcing & Screen, 2 Interview, 3 BG Check, 4 Offer
+  const stageDefs = ['Posting','Sourcing & Screen','Interview','BG Check','Offer'];
+
+  const reqs = [
+    { id:'TM-88213', title:'Sr. Network Engineer', location:'Bellevue, WA', dept:'IT-4021', status:'approved', approvedDaysAgo:18, hm:'S. Alvarez', stage:2 },
+    { id:'TM-88240', title:'Retail Store Manager', location:'Issaquah, WA', dept:'RETAIL-1105', status:'approved', approvedDaysAgo:9, hm:'S. Alvarez', stage:1 },
+    { id:'TM-88255', title:'Cloud Security Analyst', location:'Bellevue, WA', dept:'SEC-2210', status:'approved', approvedDaysAgo:2, hm:'S. Alvarez', stage:1 },
+    { id:'TM-88261', title:'Customer Care Rep II', location:'Frisco, TX', dept:'CARE-3390', status:'approved', approvedDaysAgo:30, hm:'M. Alvarez', stage:4 },
+    { id:'TM-88270', title:'Field Ops Supervisor', location:'Renton, WA', dept:'OPS-1180', status:'pending', submittedDaysAgo:2, hm:'S. Alvarez' },
+    { id:'TM-88274', title:'Data Analyst II', location:'Bellevue, WA', dept:'IT-4021', status:'draft', hm:'S. Alvarez' },
+    { id:'TM-88201', title:'Contractor — Temp Support', location:'Issaquah, WA', dept:'FIN-2290', status:'rejected', reason:'budget', hm:'S. Alvarez' },
+  ];
+  let reqCounter = 88300;
+  function nextReqId(){ reqCounter++; return 'TM-'+reqCounter; }
+
+  // Hero candidates (hand-authored, include multi-role applicants)
+  const candidates = [
+    { name:'Maria Petrova', avatar:'MP', applications:[
+        {reqId:'TM-88213', appliedAgo:'3d ago', source:'Sourced via LinkedIn Recruiter', score:91, scoreTier:'high', bg:'clear', stage:2},
+        {reqId:'TM-88255', appliedAgo:'1d ago', source:'Sourced via LinkedIn Recruiter', score:79, scoreTier:'high', bg:'none', stage:1} ] },
+    { name:'David Kim', avatar:'DK', applications:[
+        {reqId:'TM-88213', appliedAgo:'5d ago', source:'Sourced via LinkedIn Recruiter', score:74, scoreTier:'mid', bg:'pending', stage:1} ] },
+    { name:'Amara Singh', avatar:'AS', applications:[
+        {reqId:'TM-88213', appliedAgo:'6d ago', source:'Direct applicant', score:88, scoreTier:'high', bg:'clear', stage:2} ] },
+    { name:'Ryan Torres', avatar:'RT', applications:[
+        {reqId:'TM-88213', appliedAgo:'1w ago', source:'Sourced via LinkedIn Recruiter', score:68, scoreTier:'mid', bg:'none', stage:1} ] },
+    { name:'Priya Nair', avatar:'PN', applications:[
+        {reqId:'TM-88240', appliedAgo:'1d ago', source:'Direct applicant', score:82, scoreTier:'high', bg:'pending', stage:1},
+        {reqId:'TM-88255', appliedAgo:'2d ago', source:'Direct applicant', score:71, scoreTier:'mid', bg:'none', stage:1} ] },
+    { name:'Chris Boyd', avatar:'CB', applications:[
+        {reqId:'TM-88240', appliedAgo:'4d ago', source:'Sourced via LinkedIn Recruiter', score:59, scoreTier:'low', bg:'none', stage:1} ] },
+    { name:'Tyler Brooks', avatar:'TB', applications:[
+        {reqId:'TM-88261', appliedAgo:'2w ago', source:'Sourced via LinkedIn Recruiter', score:77, scoreTier:'mid', bg:'clear', stage:4, offerStatus:'Extended'} ] },
+    { name:'Nina Osei', avatar:'NO', applications:[
+        {reqId:'TM-88261', appliedAgo:'2w ago', source:'Direct applicant', score:93, scoreTier:'high', bg:'clear', stage:4, offerStatus:'Accepted'} ] },
+    { name:'Sam Patel', avatar:'SP', applications:[
+        {reqId:'TM-88261', appliedAgo:'3w ago', source:'Referral', score:85, scoreTier:'high', bg:'pending', stage:3} ] },
+  ];
+
+  // ===== Procedurally pad every approved req to 10+ candidates (seeded, deterministic) =====
+  const firstNames = ["Jordan","Casey","Morgan","Taylor","Riley","Avery","Jamie","Reese","Elena","Marcus","Sofia","Derek","Priyanka","Noah","Grace","Omar","Lily","Hassan","Naomi","Victor","Ines","Trevor","Aisha","Felix","Renee","Dmitri","Yuki","Carlos","Fatima","Bruno","Sana","Leo","Camille","Andre","Zara"];
+  const lastNames = ["Whitfield","Marsh","Delgado","Nakamura","O'Connell","Reyes","Fontaine","Abernathy","Kowalski","Okafor","Bianchi","Sundberg","Villanueva","Hartley","Mercer","Novak","Farrow","Castellano","Lindqvist","Brannigan","Escobar","Thackeray","Odom","Vasquez","Kessler","Mbeki","Larkspur","Duval","Winslow","Adeyemi"];
+  function seededRandom(seed){ let s = seed % 233280; return function(){ s = (s*9301+49297)%233280; return s/233280; }; }
+  function fillReqCandidates(reqId, targetCount, seed, stageWeights){
+    const rng = seededRandom(seed);
+    let current = appsForReq(reqId).length;
+    let guard = 0;
+    while(current < targetCount && guard < 200){
+      guard++;
+      const fn = firstNames[Math.floor(rng()*firstNames.length)];
+      const ln = lastNames[Math.floor(rng()*lastNames.length)];
+      const name = `${fn} ${ln}`;
+      if(candidates.find(c=>c.name===name)) continue;
+      const avatar = (fn[0]+ln[0]).toUpperCase();
+      const srcRoll = rng();
+      const source = srcRoll<0.5 ? 'Sourced via LinkedIn Recruiter' : (srcRoll<0.8 ? 'Direct applicant' : 'Referral');
+      const stageRoll = rng();
+      let stage = stageWeights.length, cum = 0;
+      for(let i=0;i<stageWeights.length;i++){ cum += stageWeights[i]; if(stageRoll <= cum){ stage = i+1; break; } }
+      const score = Math.floor(55 + rng()*40);
+      const scoreTier = score>=80?'high':(score>=65?'mid':'low');
+      const bgRoll = rng();
+      const bg = stage>=3 ? (bgRoll<0.7?'clear':'pending') : (bgRoll<0.25?'pending':'none');
+      const appliedDaysAgo = Math.floor(1+rng()*20);
+      candidates.push({name, avatar, applications:[{reqId, appliedAgo:`${appliedDaysAgo}d ago`, source, score, scoreTier, bg, stage}]});
+      current++;
+    }
+  }
+  fillReqCandidates('TM-88213', 11, 101, [0.45,0.35,0.20]);
+  fillReqCandidates('TM-88240', 10, 202, [0.70,0.30]);
+  fillReqCandidates('TM-88255', 10, 303, [0.75,0.25]);
+  fillReqCandidates('TM-88261', 12, 404, [0.40,0.30,0.20,0.10]);
+
+  let activeReqId = null;
+  let candSearch = '', candSort = 'score_desc', candStageFilter = 'all';
+
+  function reqById(id){ return reqs.find(r=>r.id===id); }
+  function appsForReq(reqId){
+    const out=[];
+    candidates.forEach(c=>{ c.applications.forEach(a=>{ if(a.reqId===reqId) out.push(Object.assign({candName:c.name, candAvatar:c.avatar}, a)); }); });
+    return out;
+  }
+  function totalApplications(){ return candidates.reduce((n,c)=>n+c.applications.length,0); }
+  function parseDaysAgo(str){ if(str==='just now') return 0; const m=String(str).match(/(\d+)/); return m?parseInt(m[1]):999; }
+
+  // ===== Hiring Manager board =====
+  function renderHM(){
+    const cols = [
+      {key:'draft', label:'Draft'}, {key:'pending', label:'Pending Approval'},
+      {key:'approved', label:'Approved'}, {key:'rejected', label:'Rejected'}
+    ];
+    document.getElementById('hm-pipeline').innerHTML = cols.map(col=>{
+      const items = reqs.filter(r=>r.status===col.key);
+      const cards = items.map(r=>{
+        let meta='', gate='', actions='';
+        if(col.key==='draft'){ meta=`${r.dept} · not yet submitted`; gate='<span class="req-card-gate gate-blue">Not visible to Recruiting</span>'; }
+        if(col.key==='pending'){ meta=`${r.dept} · submitted ${r.submittedDaysAgo}d ago · awaiting Finance/HR`; gate='<span class="req-card-gate gate-amber">Not visible to Recruiting</span>';
+          actions=`<div class="approval-actions"><button class="approve-btn" onclick="approveReq('${r.id}')">Approve</button><button class="reject-btn" onclick="rejectReq('${r.id}')">Reject</button></div>`; }
+        if(col.key==='approved'){ meta=`${r.id} · ${r.location} · approved ${r.approvedDaysAgo}d ago`; gate='<span class="req-card-gate gate-green">Live in Recruiter portal</span>'; }
+        if(col.key==='rejected'){ meta=`${r.dept} · rejected: ${r.reason}`; gate='<span class="req-card-gate gate-red">Not visible to Recruiting</span>'; }
+        return `<div class="req-card"><div class="req-card-title">${r.title}</div><div class="req-card-meta">${meta}</div>${gate}${actions}</div>`;
+      }).join('') || '<div class="empty-state">Nothing here</div>';
+      return `<div class="status-col"><div class="status-col-head"><span class="status-col-title">${col.label}</span><span class="status-count">${items.length}</span></div><div class="status-col-body">${cards}</div></div>`;
+    }).join('');
+    document.getElementById('hm-total-count').textContent = reqs.length;
+  }
+  function approveReq(id){ const r=reqById(id); r.status='approved'; r.approvedDaysAgo=0; r.stage=0; fillReqCandidates(id,10, id.length*777, [0.8,0.2]); renderHM(); renderRecruiterList(); }
+  function rejectReq(id){ const r=reqById(id); r.status='rejected'; r.reason='declined by approver'; renderHM(); }
+
+  // ===== Agentic New Requisition flow =====
+  function toggleAgentic(){
+    const p = document.getElementById('agentic-panel');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  }
+  function bubble(role, text){
+    const cls = role==='user' ? 'chat-user' : 'chat-assistant';
+    return `<div class="chat-bubble ${cls}">${text}</div>`;
+  }
+  async function generateWithAI(){
+    const input = document.getElementById('hm-ai-input');
+    const desc = input.value.trim();
+    if(!desc){ alert('Describe the role first.'); return; }
+    const log = document.getElementById('ai-chat-log');
+    log.innerHTML += bubble('user', desc);
+    const statusEl = document.getElementById('ai-status');
+    statusEl.style.display = 'block';
+    document.getElementById('ai-generate-btn').disabled = true;
+    try{
+      const prompt = `Extract structured job requisition fields from this hiring manager's free-text description. Respond with ONLY valid JSON (no markdown fences, no preamble, no explanation) using exactly these keys: title (string), department (string — a cost-center-like code or department name if mentioned), location (string), headcount (integer, default 1 if not stated), justification (short single sentence). If a field genuinely cannot be inferred, set it to null.\n\nDescription: "${desc.replace(/"/g,'\\"')}"`;
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:400, messages:[{role:'user', content:prompt}] })
+      });
+      const data = await response.json();
+      const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+      const clean = textBlocks.replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(clean);
+      populateFormFromAI(parsed);
+      const missing = ['title','department','location'].filter(k=>!parsed[k]);
+      const summary = missing.length
+        ? `Drafted what I could. I couldn't determine ${missing.join(', ')} — please fill those in below before submitting.`
+        : `Drafted: ${parsed.title} · ${parsed.department} · ${parsed.location} · headcount ${parsed.headcount||1}. Review and edit below, then submit.`;
+      log.innerHTML += bubble('assistant', summary);
+    } catch(err){
+      console.error(err);
+      log.innerHTML += bubble('assistant', "I couldn't parse that automatically. Please fill in the fields manually below.");
+      document.getElementById('ai-review-form').style.display = 'block';
+    } finally {
+      statusEl.style.display = 'none';
+      document.getElementById('ai-generate-btn').disabled = false;
+      input.value = '';
+    }
+  }
+  function populateFormFromAI(p){
+    const set = (id, val)=>{ const el=document.getElementById(id); el.value = val || ''; el.classList.toggle('missing', !val); };
+    set('f-title', p.title);
+    set('f-dept', p.department);
+    set('f-location', p.location);
+    document.getElementById('f-headcount').value = p.headcount || 1;
+    document.getElementById('f-justification').value = p.justification || '';
+    document.getElementById('ai-review-form').style.display = 'block';
+  }
+  function collectFormReq(){
+    return {
+      id: nextReqId(),
+      title: document.getElementById('f-title').value.trim() || 'Untitled Requisition',
+      dept: document.getElementById('f-dept').value.trim() || '—',
+      location: document.getElementById('f-location').value.trim() || '—',
+      headcount: parseInt(document.getElementById('f-headcount').value) || 1,
+      justification: document.getElementById('f-justification').value.trim(),
+      hm: 'S. Alvarez'
+    };
+  }
+  function resetAgenticPanel(){
+    document.getElementById('ai-chat-log').innerHTML='';
+    document.getElementById('ai-review-form').style.display='none';
+    document.getElementById('agentic-panel').style.display='none';
+    ['f-title','f-dept','f-location','f-justification'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-headcount').value=1;
+  }
+  function saveReqDraft(){
+    const base = collectFormReq();
+    reqs.unshift(Object.assign(base, {status:'draft'}));
+    resetAgenticPanel(); renderHM();
+  }
+  function submitReqForApproval(){
+    const base = collectFormReq();
+    reqs.unshift(Object.assign(base, {status:'pending', submittedDaysAgo:0}));
+    resetAgenticPanel(); renderHM();
+  }
+
+  // ===== Recruiter: list + detail =====
+  function renderRecruiterList(){
+    const approved = reqs.filter(r=>r.status==='approved');
+    document.getElementById('recruiter-list').innerHTML = approved.map(r=>{
+      const apps = appsForReq(r.id);
+      const stageLabel = stageDefs[r.stage] || 'Posting';
+      const badgeClass = r.stage===4 ? 'rr-badge offer' : 'rr-badge';
+      return `<div class="recruiter-req-row" onclick="openReq('${r.id}')">
+        <div class="rr-left"><div class="rr-title">${r.title} — ${r.location}</div>
+        <div class="rr-meta">${r.id} · Approved ${r.approvedDaysAgo}d ago · ${apps.length} candidates in pipeline</div></div>
+        <span class="${badgeClass}">${stageLabel}</span></div>`;
+    }).join('') || '<div class="empty-state">No approved requisitions yet</div>';
+    document.getElementById('rec-total-count').textContent = approved.length;
+    document.getElementById('rec-cand-count').textContent = candidates.length;
+  }
+  function renderDetail(){
+    const r = reqById(activeReqId); if(!r) return;
+    document.getElementById('detail-title').textContent = `${r.title} — ${r.location}`;
+    document.getElementById('detail-sub').textContent = `${r.id} · Approved by ${r.hm}, ${r.approvedDaysAgo} days ago`;
+    document.getElementById('detail-stage-rail').innerHTML = stageDefs.map((label,i)=>{
+      const state = i<r.stage ? 'done' : (i===r.stage ? 'current' : '');
+      const connClass = i<=r.stage && i>0 ? 'done' : '';
+      const node = state==='done' ? '✓' : (i+1);
+      let sub = '—';
+      if(i===1) sub = `${appsForReq(r.id).length} candidates`;
+      if(i===0) sub = `Live ${r.approvedDaysAgo}d`;
+      if(i===4 && r.stage===4) sub = `${appsForReq(r.id).filter(a=>a.stage===4).length} offer(s) out`;
+      return `<div class="stage">${i>0?`<div class="stage-connector ${connClass}"></div>`:''}<div class="stage-node ${state}">${node}</div><div class="stage-label">${label}</div><div class="stage-sub">${sub}</div></div>`;
+    }).join('');
+    const apps = appsForReq(r.id);
+    document.getElementById('detail-candidates').innerHTML = apps.length ? apps.map(a=>candidateRowHTML(a)).join('') : '<div class="empty-state">No candidates yet — click "+ Add Candidate" to source or add one.</div>';
+  }
+  function candidateRowHTML(a){
+    const scoreClass = a.scoreTier==='high'?'':(a.scoreTier==='mid'?'mid':'low');
+    const bgLabel = a.bg==='clear' ? '✓ Accurate: Clear' : (a.bg==='pending' ? '⏱ Accurate: Pending' : '— Not started');
+    const bgClass = a.bg==='clear' ? '' : (a.bg==='pending' ? 'pending' : 'none');
+    const offerChip = a.offerStatus ? `<span class="offer-badge">Offer: ${a.offerStatus}</span>` : '';
+    return `<div class="candidate"><div class="cand-avatar">${a.candAvatar}</div>
+      <div class="cand-info"><div class="cand-name">${a.candName}</div><div class="cand-meta">${a.source} · Applied ${a.appliedAgo}</div></div>
+      <div class="cand-badges"><span class="stage-badge">${stageDefs[a.stage]}</span><span class="score-badge ${scoreClass}">HiredScore ${a.score}</span><span class="bg-badge ${bgClass}">${bgLabel}</span>${offerChip}</div></div>`;
+  }
+
+  // ===== Candidates tab: grouped by req, searchable/sortable/filterable =====
+  function sortApps(apps, mode){
+    const arr = apps.slice();
+    if(mode==='score_desc') arr.sort((a,b)=> (b.score==='—'?-1:b.score) - (a.score==='—'?-1:a.score));
+    if(mode==='recent') arr.sort((a,b)=> parseDaysAgo(a.appliedAgo) - parseDaysAgo(b.appliedAgo));
+    if(mode==='name_asc') arr.sort((a,b)=> a.candName.localeCompare(b.candName));
+    return arr;
+  }
+  function renderCandidatesTab(){
+    const controls = `
+      <div class="cand-controls">
+        <input type="text" placeholder="Search candidates by name…" value="${candSearch}" oninput="onCandSearch(this.value)">
+        <select onchange="onCandStageFilter(this.value)">
+          <option value="all" ${candStageFilter==='all'?'selected':''}>All stages</option>
+          ${stageDefs.map((s,i)=> i>0 ? `<option value="${i}" ${candStageFilter==String(i)?'selected':''}>${s}</option>` : '').join('')}
+        </select>
+        <select onchange="onCandSort(this.value)">
+          <option value="score_desc" ${candSort==='score_desc'?'selected':''}>Sort: HiredScore (high→low)</option>
+          <option value="recent" ${candSort==='recent'?'selected':''}>Sort: Most recent applicant</option>
+          <option value="name_asc" ${candSort==='name_asc'?'selected':''}>Sort: Name (A→Z)</option>
+        </select>
+      </div>`;
+    const approvedReqs = reqs.filter(r=>r.status==='approved');
+    let anyResults = false;
+    const groups = approvedReqs.map(r=>{
+      let apps = appsForReq(r.id);
+      if(candSearch.trim()) apps = apps.filter(a=>a.candName.toLowerCase().includes(candSearch.trim().toLowerCase()));
+      if(candStageFilter!=='all') apps = apps.filter(a=>a.stage===parseInt(candStageFilter));
+      apps = sortApps(apps, candSort);
+      if(apps.length===0) return '';
+      anyResults = true;
+      return `<div class="req-group">
+        <div class="req-group-head"><h3>${r.title}</h3><span>${r.id} · ${apps.length} candidate${apps.length===1?'':'s'}</span></div>
+        ${apps.map(a=>candidateRowHTML(a)).join('')}
+      </div>`;
+    }).join('');
+    document.getElementById('candidates-workspace').innerHTML = controls + (anyResults ? groups : '<div class="empty-state">No candidates match your search/filter.</div>');
+  }
+  function onCandSearch(v){ candSearch=v; renderCandidatesTab(); }
+  function onCandSort(v){ candSort=v; renderCandidatesTab(); }
+  function onCandStageFilter(v){ candStageFilter=v; renderCandidatesTab(); }
+
+  // ===== Reports: pipeline health + performance insights =====
+  function reqHealth(r){
+    const apps = appsForReq(r.id);
+    const total = apps.length;
+    const advanced = apps.filter(a=>a.stage>=2).length;
+    const conversion = total ? advanced/total : 0;
+    const daysOpen = r.approvedDaysAgo;
+    let status='Healthy', reason='Progressing normally';
+    if(r.stage===4){ status='Healthy'; reason='Active offer(s) out'; }
+    else if(daysOpen>14 && conversion<0.3){ status='At Risk'; reason=`Only ${Math.round(conversion*100)}% of candidates advanced past Sourcing after ${daysOpen} days open`; }
+    else if(daysOpen>21){ status='Needs Attention'; reason=`Open ${daysOpen} days without reaching later stages`; }
+    return {total, advanced, conversion, daysOpen, status, reason};
+  }
+  function healthClass(status){ return status==='At Risk' ? 'health-atrisk' : (status==='Needs Attention' ? 'health-attention' : 'health-healthy'); }
+
+  function renderReportsTab(){
+    const approvedReqs = reqs.filter(r=>r.status==='approved');
+    const totalApps = totalApplications();
+    const offersExtended = candidates.reduce((n,c)=>n+c.applications.filter(a=>a.stage===4 && a.offerStatus).length,0);
+    const offersAccepted = candidates.reduce((n,c)=>n+c.applications.filter(a=>a.offerStatus==='Accepted').length,0);
+    const acceptanceRate = offersExtended ? Math.round((offersAccepted/offersExtended)*100) : null;
+    const avgPerReq = approvedReqs.length ? (totalApps/approvedReqs.length).toFixed(1) : 0;
+
+    const healths = approvedReqs.map(r=>Object.assign({r}, reqHealth(r)));
+    const atRiskCount = healths.filter(h=>h.status==='At Risk').length;
+
+    const funnelCounts = [1,2,3,4].map(i => candidates.reduce((n,c)=>n+c.applications.filter(a=>a.stage===i).length,0));
+    const maxFunnel = Math.max(...funnelCounts,1);
+
+    // source conversion comparison
+    const sourceStats = {};
+    candidates.forEach(c=>c.applications.forEach(a=>{
+      sourceStats[a.source] = sourceStats[a.source] || {total:0, advanced:0};
+      sourceStats[a.source].total++;
+      if(a.stage>=2) sourceStats[a.source].advanced++;
+    }));
+    const sourceEntries = Object.entries(sourceStats).map(([src,s])=>({src, rate: s.total ? s.advanced/s.total : 0, total:s.total}));
+    sourceEntries.sort((a,b)=>b.rate-a.rate);
+
+    // insights
+    const insights = [];
+    if(atRiskCount>0){
+      insights.push(`${atRiskCount} of ${approvedReqs.length} open requisitions are flagged <b>At Risk</b> — low conversion past Sourcing relative to days open.`);
+    } else {
+      insights.push(`No requisitions are currently flagged At Risk based on days-open vs. conversion.`);
+    }
+    if(healths.length){
+      const worst = healths.slice().sort((a,b)=>a.conversion-b.conversion)[0];
+      insights.push(`${worst.r.title} (${worst.r.id}) has the lowest Sourcing→Interview+ conversion at ${Math.round(worst.conversion*100)}%, ${worst.daysOpen} days open.`);
+    }
+    if(offersExtended>0){
+      insights.push(`Offer acceptance rate is ${acceptanceRate}% (${offersAccepted} of ${offersExtended} extended).`);
+    } else {
+      insights.push(`No offers have been extended yet across open requisitions.`);
+    }
+    if(sourceEntries.length>=2){
+      const best = sourceEntries[0], worst = sourceEntries[sourceEntries.length-1];
+      insights.push(`${best.src} candidates convert to Interview+ at ${Math.round(best.rate*100)}% (n=${best.total}), vs. ${Math.round(worst.rate*100)}% for ${worst.src} (n=${worst.total}).`);
+    }
+
+    document.getElementById('reports-workspace').innerHTML = `
+      <div class="report-grid">
+        <div class="metric-card"><div class="metric-value">${approvedReqs.length}</div><div class="metric-label">Open Approved Reqs</div></div>
+        <div class="metric-card"><div class="metric-value">${totalApps}</div><div class="metric-label">Total Applications</div></div>
+        <div class="metric-card"><div class="metric-value">${avgPerReq}</div><div class="metric-label">Avg Candidates / Req</div></div>
+        <div class="metric-card"><div class="metric-value">${atRiskCount}</div><div class="metric-label">Reqs At Risk</div></div>
+      </div>
+
+      <div class="card"><div class="card-head"><span class="card-title">Recruiter Performance Insights</span></div>
+        <div class="card-body">
+          <div class="insight-list">
+            ${insights.map((txt,i)=>`<div class="insight-item"><span class="insight-icon">${i+1}</span><span>${txt}</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="card"><div class="card-head"><span class="card-title">Pipeline Health by Requisition</span></div>
+        <div class="card-body" style="padding:0 18px 12px 18px;">
+          <table class="health-table">
+            <thead><tr><th>Requisition</th><th>Days Open</th><th>Candidates</th><th>Conv. to Interview+</th><th>Health</th></tr></thead>
+            <tbody>
+              ${healths.map(h=>`<tr>
+                <td><b>${h.r.title}</b><br><span class="health-reason">${h.r.id}</span></td>
+                <td>${h.daysOpen}d</td>
+                <td>${h.total}</td>
+                <td>${Math.round(h.conversion*100)}%</td>
+                <td><span class="health-badge ${healthClass(h.status)}">${h.status}</span><br><span class="health-reason">${h.reason}</span></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card"><div class="card-head"><span class="card-title">Candidate Funnel (by current stage)</span></div>
+        <div class="card-body">
+          ${['Sourcing & Screen','Interview','BG Check','Offer'].map((label,i)=>{
+            const val = funnelCounts[i]; const pct = Math.max(8, (val/maxFunnel)*100);
+            return `<div class="funnel-row"><div class="funnel-label">${label}</div><div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:${pct}%;"><span>${val}</span></div></div></div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="footnote" style="padding-top:4px;">Insights and health flags are computed from the sample data on this screen using simple rules (days-open vs. conversion) — not a validated scoring model.</div>
+    `;
+  }
+
+  // ===== Role / view switching =====
+  function setRole(role){
+    document.getElementById('btn-hm').classList.toggle('active', role==='hm');
+    document.getElementById('btn-rec').classList.toggle('active', role==='rec');
+    document.getElementById('nav-hm').style.display = role==='hm' ? 'block':'none';
+    document.getElementById('nav-rec').style.display = role==='rec' ? 'block':'none';
+    document.getElementById('view-hm').classList.toggle('active', role==='hm');
+    if(role==='rec'){ showRecView('list'); } else {
+      ['view-rec-list','view-rec-detail','view-rec-candidates','view-rec-reports'].forEach(id=>document.getElementById(id).classList.remove('active'));
+    }
+  }
+  function showRecView(which){
+    ['view-rec-list','view-rec-detail','view-rec-candidates','view-rec-reports'].forEach(id=>document.getElementById(id).classList.remove('active'));
+    ['nav-rec-reqs','nav-rec-cands','nav-rec-reports'].forEach(id=>document.getElementById(id).classList.remove('active'));
+    if(which==='list'){ document.getElementById('view-rec-list').classList.add('active'); document.getElementById('nav-rec-reqs').classList.add('active'); renderRecruiterList(); }
+    if(which==='candidates'){ document.getElementById('view-rec-candidates').classList.add('active'); document.getElementById('nav-rec-cands').classList.add('active'); renderCandidatesTab(); }
+    if(which==='reports'){ document.getElementById('view-rec-reports').classList.add('active'); document.getElementById('nav-rec-reports').classList.add('active'); renderReportsTab(); }
+  }
+  function openReq(id){
+    activeReqId = id;
+    ['view-rec-list','view-rec-candidates','view-rec-reports'].forEach(vid=>document.getElementById(vid).classList.remove('active'));
+    document.getElementById('view-rec-detail').classList.add('active');
+    renderDetail();
+  }
+
+  // ===== Add Candidate modal =====
+  function openAddCandidate(){ document.getElementById('modal-overlay').classList.add('active'); }
+  function closeAddCandidate(){ document.getElementById('modal-overlay').classList.remove('active'); document.getElementById('cand-name').value=''; document.getElementById('cand-meta').value=''; }
+  function setSourceTab(el){ document.querySelectorAll('.source-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+  function submitAddCandidate(){
+    const name = document.getElementById('cand-name').value.trim();
+    if(!name){ alert('Enter a candidate name.'); return; }
+    const srcTab = document.querySelector('.source-tab.active').dataset.src;
+    const srcLabel = srcTab==='linkedin' ? 'Sourced via LinkedIn Recruiter' : (srcTab==='referral' ? 'Referral' : 'Manual Entry');
+    const newApp = {reqId:activeReqId, appliedAgo:'just now', source:srcLabel, score:'—', scoreTier:'mid', bg:'none', stage:1};
+    let existing = candidates.find(c=>c.name.toLowerCase()===name.toLowerCase());
+    if(existing){ existing.applications.push(newApp); }
+    else { const initials = name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase(); candidates.push({name, avatar:initials, applications:[newApp]}); }
+    closeAddCandidate(); renderDetail(); renderRecruiterList();
+  }
+
+  renderHM();
+  renderRecruiterList();
+</script>
+</body>
+</html>
