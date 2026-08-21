@@ -8,26 +8,29 @@ _Each prompt is a reusable step. Chain them: the output of one becomes the input
 
 ## Prompt chain: [name your flow]
 
-### Step 1: [purpose]
+### Step 1: Expand, build new screens in a strict sequence
 ```
-[prompt text, with {{variables}} for the parts you swap]
+Build the next phase of this app in a strict sequence:
+1. Add a screen "Recruiter Insights". Match the layout and spacing with other screens
 ```
-**Expects in:** _____
-**Produces out:** _____
 
-### Step 2: [purpose]
+### Step 2: Behavior, hard-code the states
 ```
-[prompt text]
-```
-**Expects in:** _____
-**Produces out:** _____
+Apply the following logic constraints to the REQ details screen:
+- List the Candidate details in a grid view 
+- If no data is present, show the empty state: "No records found".
+- On Candidate workspace screen help me navigate to the next record or previous record. Add Next and Previous button for navigation ease.
 
-### Step 3: [purpose]
+Maintain the same design language throughout and tether all behavior strictly to these rules.
 ```
-[prompt text]
+
+### Step 3: Refine, one surgical polish
 ```
-**Expects in:** _____
-**Produces out:** _____
+The Dashboard needs a polish.
+1. Candidate Name and details sticks on the screen along with the Days in Pipeline, Time to Hire and Stage. Remove all 3
+
+Don't change anything else in the project or touch the underlying logic.
+```
 
 ## Reusable techniques learned
 
