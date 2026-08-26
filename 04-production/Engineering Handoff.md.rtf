@@ -1,0 +1,155 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2868
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # Engineering Handoff \'97 T-Mobile Talent Workspace Prototype\
+\
+## 60-second summary\
+\
+This is a high-fidelity, clickable React prototype for an in-house T-Mobile recruiter workspace. It replaces the LinkedIn Recruiter \uc0\u8596  Workday ATS tab shuffle with a single surface: a left-hand pipeline board for three real requisitions and ~20 named candidates, and a right-hand candidate workspace that walks a recruiter through Review \u8594  Screen \u8594  Schedule Interview \u8594  Offer \u8594  Hire. Every stage is driven by static, realistic seed data and every "AI" action is gated behind an explicit Confirm / Dismiss choice. State lives in React and resets on refresh; there is no backend, auth, or external API integration yet.\
+\
+---\
+\
+## Architecture\
+\
+### Frontend\
+\
+- **Framework:** TanStack Start v1 on Vite 7, React 19, TypeScript.\
+- **Router:** File-based routing in `src/routes/`.\
+  - `/` \'97 loads `TalentWorkspace` with the first candidate selected.\
+  - `/candidate/$id` \'97 deep-links to a specific candidate.\
+- **State:** Plain React `useState` in `TalentWorkspace`. No global store, no persistence.\
+  - `reqId`, `selectedId`, `filters`, `railOpen` are local UI state.\
+  - `WorkspaceState` (`Record<candidateId, CandidateState>`) tracks per-candidate stage, notes, scorecard, slot, offer flags, and handoff.\
+- **Styling:** Tailwind CSS v4 with custom semantic tokens in `src/styles.css`.\
+  - T-Mobile brand mapped to OKLCH: `magenta`, `magenta-deep`, `magenta-soft`, `magenta-tint`, `charcoal`.\
+  - Stage colors are separate tokens (`stage-review`, `stage-screen`, etc.).\
+- **UI primitives:** `src/components/ui/*` (shadcn-style Radix components) plus feature-owned shared components in `src/features/shared/components/`.\
+\
+### Backend / data\
+\
+- **No backend.** The prototype is fully client-side.\
+- **Data layer** is separated under `src/features/pipeline/data/`:\
+  - `types.ts` \'97 domain types (`StageId`, `Req`, `Candidate`).\
+  - `stages.ts` \'97 stage definitions and helpers.\
+  - `reqs.ts` \'97 three real T-Mobile requisitions.\
+  - `candidates.ts` \'97 ~21 candidates with skills, highlights, Paradox summaries, feedback, approvals, etc.\
+  - `index.ts` \'97 public exports.\
+- **Model layer** under `src/features/pipeline/model/`:\
+  - `filters.ts` \'97 filter shape and `applyFilters`.\
+  - `workspace-state.ts` \'97 `CandidateState`, `WorkspaceState`, `Patch`, and initial-state factory.\
+\
+### Feature grouping\
+\
+```text\
+src/features/\
+  candidate-workspace/components/TalentWorkspace.tsx   # shell + stage stepper\
+  pipeline/components/PipelineBoard.tsx                  # rail + filters\
+  pipeline/data/                                       # seed data\
+  pipeline/model/                                      # filter + state logic\
+  review/ReviewScreen.tsx\
+  screen/ScreeningScreen.tsx\
+  schedule-interview/ScheduleInterviewScreen.tsx\
+  offer/OfferScreen.tsx\
+  hire/HireScreen.tsx\
+  shared/components/                                   # AiSuggestionCard, panel-ui\
+  shared/types.ts                                      # StageScreenProps\
+```\
+\
+### Key flows\
+\
+1. **Review**\
+   - Recruiter sees profile, match evidence, and an AI suggestion to advance.\
+   - Notes can be entered. "Advance to screen" or "Reject" moves state.\
+2. **Screen**\
+   - Must-have checklist drives the scorecard.\
+   - Paradox chat summary shown inline.\
+   - Submitting the scorecard advances to interview.\
+3. **Schedule Interview**\
+   - AI suggests slots pulled from the req's panel and candidate availability.\
+   - Recruiter selects a slot, then confirms to "send" the invite.\
+   - Panel feedback is rendered if present in seed data.\
+4. **Offer**\
+   - AI suggests a comp package inside the req band.\
+   - Recruiter generates the offer, sends for approval, then marks accepted.\
+5. **Hire**\
+   - Close summary, time-to-hire comparison against a 55-day baseline, and onboarding handoff.\
+\
+---\
+\
+## What's solid vs. what's duct tape\
+\
+### Solid\
+\
+- **Feature-based folder structure** \'97 data, model, and display are separated.\
+- **Typed seed data** \'97 every candidate, req, and stage is strongly typed.\
+- **AI guardrail pattern** \'97 `AiSuggestionCard` enforces confirm/dismiss for every suggestion.\
+- **Responsive layout** \'97 collapsible pipeline rail on mobile, persistent on desktop.\
+- **Deep-linking** \'97 `/candidate/$id` works and updates the selected candidate.\
+- **Design tokens** \'97 T-Mobile colors mapped to OKLCH and exposed as Tailwind utilities.\
+\
+### Duct tape\
+\
+- **No persistence.** All state is React local state; a refresh resets everything.\
+- **No auth.** The recruiter name in the header is hardcoded ("Sourabh A.").\
+- **No real integrations.** LinkedIn Recruiter, Workday, Paradox, Accurate, HiredScore, and Power BI are represented by static data, not APIs.\
+- **Scheduling is fake.** Selecting a slot and clicking "Send invite" only flips a boolean.\
+- **Offer/hire are summary states.** They capture decisions but do not generate documents or talk to HR/Comp systems.\
+- **Availability filter uses a regex** against free-text strings.\
+- **No tests.** There are no unit, integration, or E2E tests checked in.\
+- **No error boundaries beyond the root.** Stage-level errors will bubble to the root error page.\
+\
+---\
+\
+## Risks and assumptions\
+\
+| Risk / assumption | Impact | Mitigation |\
+|-------------------|--------|------------|\
+| State is not persisted. | Refresh loses progress; unsuitable for multi-session recruiter tests. | Add a backend + DB (Lovable Cloud/Supabase) or at least `localStorage` persistence before the kill-switch test. |\
+| Static data may diverge from real T-Mobile reqs/candidates. | Test recruiters may spot unrealistic details. | Validate seed data with the talent-acquisition team; replace with API-backed data before production. |\
+| Offer and Hire stages are simplified. | The \uc0\u8805 60% complete-flow metric may need more fidelity at offer generation and onboarding handoff. | Expand these screens once the core review/screen/schedule flow passes the test. |\
+| No auth or role checks. | Anyone with the link can advance candidates. | Add recruiter authentication and authorization before sharing outside the test cohort. |\
+| AI suggestions are hardcoded, not generated. | The "AI" experience is deterministic; real ML integration will change timing and copy. | Treat suggestions as UX scaffolding; wire to actual suggestion service later. |\
+| Browser-only. | No SSR data fetching; prerender is trivial. | Fine for a prototype; add server functions when real APIs are introduced. |\
+\
+---\
+\
+## How to run it\
+\
+Requirements: Node.js 20+ or Bun. The repo uses `bun.lock`, but `npm` works too.\
+\
+```bash\
+# Install dependencies\
+bun install\
+\
+# Start the dev server\
+bun dev\
+```\
+\
+Open `http://localhost:8080`.\
+\
+Other useful commands:\
+\
+```bash\
+bun run build       # production build\
+bun run build:dev   # development build\
+bun run preview     # preview the production build\
+bun run lint        # ESLint\
+bun run format      # Prettier\
+```\
+\
+No environment variables or API keys are required for the current prototype.\
+\
+---\
+\
+## Suggested next steps for engineering\
+\
+1. **Persistence:** Replace local state with a small backend store so recruiters can resume sessions.\
+2. **Auth:** Add recruiter login and enforce role-based access before production sharing.\
+3. **Real integrations:** Add server functions or API routes to fetch live candidate, req, and interview data from Workday/LinkedIn/Paradox.\
+4. **Testing:** Add Playwright coverage for the full Review \uc0\u8594  Hire flow and unit tests for `applyFilters` and `createInitialWorkspaceState`.\
+5. **Offer/Hire depth:** Build offer-document generation, approval workflow, and onboarding handoff screens if the kill-switch test shows these stages need more fidelity.\
+}
